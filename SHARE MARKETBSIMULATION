@@ -22,7 +22,39 @@ typedef struct {
 Stock market[MAX_STOCKS];
 Holding portfolio[MAX_HOLDINGS];
 int holding_count = 0;
-float cash_balance = 100000.0f;  // initial virtual money
+float cash_balance = 100000.0f;
+
+/* --- LOGIN SYSTEM LOGIC WITH 3 ATTEMPTS --- */
+int authenticate() {
+    char usernames[3][6] = {"ABC12", "XYZ88", "LMN45"};
+    char passwords[3][10] = {"pass01", "pass02", "pass03"};
+    char realNames[3][20] = {"P Tanush", "P Venkata Sai", "P Raj"};
+    
+    char uInput[20], pInput[20];
+    int attempts = 0;
+
+    // Loop until 3 attempts are reached
+    while (attempts < 3) {
+        printf("\n--- SYSTEM LOGIN (Attempt %d of 3) ---\n", attempts + 1);
+        printf("Username: ");
+        scanf("%s", uInput);
+        printf("Password: ");
+        scanf("%s", pInput);
+
+        for (int i = 0; i < 3; i++) {
+            if (strcmp(uInput, usernames[i]) == 0 && strcmp(pInput, passwords[i]) == 0) {
+                printf("\nAccess Granted! Welcome, %s.\n", realNames[i]);
+                return 1; // Success - Exit function and start simulator
+            }
+        }
+
+        printf("Invalid username or password. Please try again.\n");
+        attempts++;
+    }
+
+    // If loop finishes without returning 1
+    return 0; // Failure
+}
 
 /* Function prototypes */
 void init_market();
@@ -31,14 +63,19 @@ void show_portfolio();
 void update_prices();
 void buy_stock();
 void sell_stock();
-
 int find_stock_index(const char *symbol);
 int find_holding_index(const char *symbol);
 
 int main() {
-    int choice;
-    srand((unsigned)time(NULL));  // for random price changes
+    // START LOGIN SYSTEM
+    if (!authenticate()) {
+        printf("\nERROR: Too many failed attempts. System Locked for security.\n");
+        return 0; // Terminate program
+    }
+    // END LOGIN SYSTEM
 
+    int choice;
+    srand((unsigned)time(NULL));
     init_market();
 
     while (1) {
@@ -54,52 +91,28 @@ int main() {
         scanf("%d", &choice);
 
         switch (choice) {
-            case 1:
-                show_stocks();
-                break;
-            case 2:
-                show_portfolio();
-                break;
-            case 3:
-                buy_stock();
-                break;
-            case 4:
-                sell_stock();
-                break;
-            case 5:
-                update_prices();
-                break;
-            case 6:
-                printf("Exiting simulator. Thank you!\n");
-                return 0;
-            default:
-                printf("Invalid choice. Please try again.\n");
+            case 1: show_stocks(); break;
+            case 2: show_portfolio(); break;
+            case 3: buy_stock(); break;
+            case 4: sell_stock(); break;
+            case 5: update_prices(); break;
+            case 6: printf("Exiting simulator. Thank you!\n"); return 0;
+            default: printf("Invalid choice. Please try again.\n");
         }
     }
 }
 
-/* Initialize some sample stocks */
+/* --- Core Function Implementations --- */
+
 void init_market() {
-    strcpy(market[0].symbol, "TCS");
-    market[0].price = 3500.0f;
-
-    strcpy(market[1].symbol, "INFY");
-    market[1].price = 1600.0f;
-
-    strcpy(market[2].symbol, "RELI");
-    market[2].price = 2700.0f;
-
-    strcpy(market[3].symbol, "HDFC");
-    market[3].price = 1500.0f;
-
-    strcpy(market[4].symbol, "ITC");
-    market[4].price = 450.0f;
-
-    for (int i = 0; i < MAX_STOCKS; i++) {
-        market[i].prev_price = market[i].price;
-    }
-
-    // Initialize portfolio
+    strcpy(market[0].symbol, "TCS"); market[0].price = 3500.0f;
+    strcpy(market[1].symbol, "INFY"); market[1].price = 1600.0f;
+    strcpy(market[2].symbol, "RELI"); market[2].price = 2700.0f;
+    strcpy(market[3].symbol, "HDFC"); market[3].price = 1500.0f;
+    strcpy(market[4].symbol, "ITC"); market[4].price = 450.0f;
+    
+    for (int i = 0; i < MAX_STOCKS; i++) market[i].prev_price = market[i].price;
+    
     for (int i = 0; i < MAX_HOLDINGS; i++) {
         portfolio[i].symbol[0] = '\0';
         portfolio[i].quantity = 0;
@@ -108,193 +121,99 @@ void init_market() {
     holding_count = 0;
 }
 
-/* Show all stocks with prices */
 void show_stocks() {
-    printf("\n--- Market Stocks ---\n");
-    printf("Symbol\tPrice\tChange(%%)\n");
+    printf("\n--- Market Stocks ---\nSymbol\tPrice\tChange(%%)\n");
     for (int i = 0; i < MAX_STOCKS; i++) {
-        float change_pct = 0.0f;
-        if (market[i].prev_price > 0) {
-            change_pct = ((market[i].price - market[i].prev_price) /
-                          market[i].prev_price) * 100.0f;
-        }
+        float change_pct = ((market[i].price - market[i].prev_price) / market[i].prev_price) * 100.0f;
         printf("%s\t%.2f\t%.2f%%\n", market[i].symbol, market[i].price, change_pct);
     }
 }
 
-/* Show portfolio and total value */
 void show_portfolio() {
     printf("\n--- Portfolio ---\n");
-    if (holding_count == 0) {
-        printf("No holdings yet.\n");
-        return;
-    }
-
+    if (holding_count == 0) { printf("No holdings yet.\n"); return; }
+    
     float total_value = cash_balance;
     printf("Symbol\tQty\tAvgBuy\tCurrent\tHoldingValue\n");
-
     for (int i = 0; i < holding_count; i++) {
         int idx = find_stock_index(portfolio[i].symbol);
-        if (idx == -1) continue;  // should not happen in this simple version
-
         float current_price = market[idx].price;
         float value = current_price * portfolio[i].quantity;
         total_value += value;
-
-        printf("%s\t%d\t%.2f\t%.2f\t%.2f\n",
-               portfolio[i].symbol,
-               portfolio[i].quantity,
-               portfolio[i].avg_buy_price,
-               current_price,
-               value);
+        printf("%s\t%d\t%.2f\t%.2f\t%.2f\n", portfolio[i].symbol, portfolio[i].quantity, portfolio[i].avg_buy_price, current_price, value);
     }
-
     printf("Total portfolio value (cash + stocks): Rs %.2f\n", total_value);
 }
 
-/* Randomly update each stock's price by -5%% to +5%% */
 void update_prices() {
     printf("\nUpdating prices for next day...\n");
     for (int i = 0; i < MAX_STOCKS; i++) {
         market[i].prev_price = market[i].price;
-
-        int change = (rand() % 11) - 5; // -5 to +5
-        float factor = 1.0f + (change / 100.0f);
-        market[i].price = market[i].price * factor;
-
-        if (market[i].price < 10.0f) {
-            market[i].price = 10.0f; // avoid going too low or negative
-        }
+        int change = (rand() % 11) - 5;
+        market[i].price = market[i].price * (1.0f + (change / 100.0f));
+        if (market[i].price < 10.0f) market[i].price = 10.0f;
     }
     show_stocks();
 }
 
-/* Find stock index in market[] by symbol */
 int find_stock_index(const char *symbol) {
-    for (int i = 0; i < MAX_STOCKS; i++) {
-        if (strcmp(market[i].symbol, symbol) == 0) {
-            return i;
-        }
-    }
+    for (int i = 0; i < MAX_STOCKS; i++) if (strcmp(market[i].symbol, symbol) == 0) return i;
     return -1;
 }
 
-/* Find holding index in portfolio[] by symbol */
 int find_holding_index(const char *symbol) {
-    for (int i = 0; i < holding_count; i++) {
-        if (strcmp(portfolio[i].symbol, symbol) == 0) {
-            return i;
-        }
-    }
+    for (int i = 0; i < holding_count; i++) if (strcmp(portfolio[i].symbol, symbol) == 0) return i;
     return -1;
 }
 
-/* Buy stock */
 void buy_stock() {
-    char symbol[10];
-    int qty;
-
-    printf("\nEnter stock symbol to BUY: ");
-    scanf("%s", symbol);
+    char symbol[10]; int qty;
+    printf("\nEnter stock symbol to BUY: "); scanf("%s", symbol);
     int sidx = find_stock_index(symbol);
-    if (sidx == -1) {
-        printf("Invalid symbol.\n");
-        return;
+    if (sidx == -1) { printf("Invalid symbol.\n"); return; }
+    
+    printf("Enter quantity to buy: "); scanf("%d", &qty);
+    if (qty <= 0) { printf("Quantity must be positive.\n"); return; }
+    
+    float cost = market[sidx].price * qty;
+    if (cost > cash_balance) { 
+        printf(">> ALERT: Insufficient balance! Cost: Rs %.2f, Balance: Rs %.2f\n", cost, cash_balance);
+        return; 
     }
-
-    printf("Enter quantity to buy: ");
-    scanf("%d", &qty);
-    if (qty <= 0) {
-        printf("Quantity must be positive.\n");
-        return;
-    }
-
-    float price = market[sidx].price;
-    float cost = price * qty;
-
-    if (cost > cash_balance) {
-        printf("Not enough cash. Need Rs %.2f, but you have Rs %.2f\n", cost, cash_balance);
-        return;
-    }
-
-    // Deduct cash
+    
     cash_balance -= cost;
-
-    // Add or update holding
     int hidx = find_holding_index(symbol);
     if (hidx == -1) {
-        if (holding_count >= MAX_HOLDINGS) {
-            printf("Cannot add new holding, portfolio full.\n");
-            cash_balance += cost; // rollback
-            return;
-        }
-        hidx = holding_count;
+        if (holding_count >= MAX_HOLDINGS) { printf("Portfolio full.\n"); cash_balance += cost; return; }
+        hidx = holding_count++;
         strcpy(portfolio[hidx].symbol, symbol);
         portfolio[hidx].quantity = qty;
-        portfolio[hidx].avg_buy_price = price;
-        holding_count++;
+        portfolio[hidx].avg_buy_price = market[sidx].price;
     } else {
-        int old_qty = portfolio[hidx].quantity;
-        float old_total_cost = portfolio[hidx].avg_buy_price * old_qty;
-        float new_total_cost = old_total_cost + cost;
-        int new_qty = old_qty + qty;
-
-        portfolio[hidx].quantity = new_qty;
-        portfolio[hidx].avg_buy_price = new_total_cost / new_qty;
+        float old_cost = portfolio[hidx].avg_buy_price * portfolio[hidx].quantity;
+        portfolio[hidx].quantity += qty;
+        portfolio[hidx].avg_buy_price = (old_cost + cost) / portfolio[hidx].quantity;
     }
-
-    printf("Bought %d shares of %s at Rs %.2f each. New cash balance: Rs %.2f\n",
-           qty, symbol, price, cash_balance);
+    printf("Success! New cash balance: Rs %.2f\n", cash_balance);
 }
 
-/* Sell stock */
 void sell_stock() {
-    char symbol[10];
-    int qty;
-
-    printf("\nEnter stock symbol to SELL: ");
-    scanf("%s", symbol);
-    int sidx = find_stock_index(symbol);
-    if (sidx == -1) {
-        printf("Invalid symbol.\n");
-        return;
-    }
-
+    char symbol[10]; int qty;
+    printf("\nEnter stock symbol to SELL: "); scanf("%s", symbol);
     int hidx = find_holding_index(symbol);
-    if (hidx == -1) {
-        printf("You do not own this stock.\n");
-        return;
-    }
-
-    printf("Enter quantity to sell: ");
-    scanf("%d", &qty);
-    if (qty <= 0) {
-        printf("Quantity must be positive.\n");
-        return;
-    }
-
-    if (qty > portfolio[hidx].quantity) {
-        printf("You only have %d shares of %s.\n", portfolio[hidx].quantity, symbol);
-        return;
-    }
-
-    float price = market[sidx].price;
-    float proceeds = price * qty;
-
-    // Increase cash
-    cash_balance += proceeds;
-
-    // Decrease quantity
+    if (hidx == -1) { printf("You do not own this stock.\n"); return; }
+    
+    printf("Enter quantity to sell: "); scanf("%d", &qty);
+    if (qty > portfolio[hidx].quantity) { printf("You only own %d shares.\n", portfolio[hidx].quantity); return; }
+    
+    int sidx = find_stock_index(symbol);
+    cash_balance += (market[sidx].price * qty);
     portfolio[hidx].quantity -= qty;
-
-    // If quantity becomes zero, remove this holding by shifting others
+    
     if (portfolio[hidx].quantity == 0) {
-        for (int i = hidx; i < holding_count - 1; i++) {
-            portfolio[i] = portfolio[i + 1];
-        }
+        for (int i = hidx; i < holding_count - 1; i++) portfolio[i] = portfolio[i + 1];
         holding_count--;
     }
-
-    printf("Sold %d shares of %s at Rs %.2f each. New cash balance: Rs %.2f\n",
-           qty, symbol, price, cash_balance);
+    printf("Success! New cash balance: Rs %.2f\n", cash_balance);
 }
+Bro dintlo login add chesanu 3 attempts unayi and for every username there is name
